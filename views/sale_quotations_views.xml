@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <record id="sale_quotations_view_form" model="ir.ui.view">
+            <field name="name">sale.quotations.form.ov_avales</field>
+            <field name="model">sale.quotations</field>
+            <field name="arch" type="xml">
+                <form string="Contrato/Pedido">
+                    <sheet>
+
+                        <field name="child_count" invisible="1"/>
+                        <field name="sale_order_count" invisible="1"/>
+                        <field name="bond_count" invisible="1"/>
+                        <field name="purchase_count" invisible="1"/>
+
+                        <div class="oe_button_box" name="button_box">
+                            <button type="object" name="action_view_children"
+                                    class="oe_stat_button" icon="fa-sitemap"
+                                    attrs="{'invisible': [('child_count', '=', 0)]}">
+                                <field name="child_count" widget="statinfo" string="Adendas"/>
+                            </button>
+
+                            <button type="object" name="action_view_sale_orders"
+                                    class="oe_stat_button" icon="fa-shopping-cart"
+                                    attrs="{'invisible': [('sale_order_count', '=', 0)]}">
+                                <field name="sale_order_count" widget="statinfo" string="Sale Orders"/>
+                            </button>
+
+                            <button type="object" name="action_view_bonds"
+                                    class="oe_stat_button" icon="fa-shield"
+                                    attrs="{'invisible': [('bond_count', '=', 0)]}">
+                                <field name="bond_count" widget="statinfo" string="Avales"/>
+                            </button>
+
+                            <button type="object" name="action_view_purchases"
+                                    class="oe_stat_button" icon="fa-truck"
+                                    attrs="{'invisible': [('purchase_count', '=', 0)]}">
+                                <field name="purchase_count" widget="statinfo" string="Compras"/>
+                            </button>
+                        </div>
+
+                        <group>
+                            <group>
+                                <field name="name" string="Contrato/Pedido"/>
+                                <field name="parent_id"
+                                       string="Principal"
+                                       attrs="{'readonly': [('child_ids','!=',False)]}"/>
+
+                                <field name="child_ids"
+                                       string="Adendas"
+                                       readonly="1"
+                                       attrs="{'invisible': [('parent_id','!=',False)]}">
+                                    <tree string="Contratos">
+                                        <field name="name" string="Adendas" readonly="1" decoration-bf="1"/>
+                                    </tree>
+                                </field>
+
+                            </group>
+                        </group>
+
+                        <notebook>
+                            <page string="Presupuestos / Pedidos">
+                                <field name="sale_order_sale_ids"
+                                       domain="[('state','=','done')]"
+                                       readonly="1">
+                                    <tree create="0">
+                                        <field name="quotations_id"/>
+                                        <field name="name"/>
+                                        <field name="partner_id"/>
+                                        <field name="amount_untaxed" optional="show"/>
+                                        <field name="user_id"/>
+                                        <field name="state" widget="badge"
+                                               decoration-success="state == 'done'"/>
+                                    </tree>
+                                </field>
+                            </page>
+
+                            <page string="Avales">
+                                <field name="bond_ids" readonly="1">
+                                    <tree create="0">
+                                        <field name="name"/>
+                                        <field name="reference"/>
+                                        <field name="amount" optional="show"/>
+                                        <field name="state" widget="badge"
+                                               decoration-success="state == 'done'"
+                                               decoration-info="state not in ('done', 'cancel')"/>
+                                    </tree>
+                                </field>
+                            </page>
+                        </notebook>
+                    </sheet>
+                    <div class="oe_chatter">
+                        <field name="message_follower_ids"/>
+                        <field name="activity_ids"/>
+                        <field name="message_ids"/>
+                    </div>
+                </form>
+            </field>
+        </record>
+
+        <!-- ============== TREE VIEW: sale.quotations ========================================================= -->
+        <record id="sale_quotations_view_tree" model="ir.ui.view">
+            <field name="name">sale.quotations.tree</field>
+            <field name="model">sale.quotations</field>
+            <field name="arch" type="xml">
+                <tree string="Contracts">
+                    <field name="name" string="Contract" readonly="1" decoration-bf="1"/>
+                    <field name="partner_id" string="Cliente" readonly="1" decoration-bf="1"/>
+                    <field name="sale_order_sale_ids" widget="many2many_tags" readonly="1"/>
+                </tree>
+            </field>
+        </record> <!-- =============================== SEARCH VIEW: sale.quotations ========================================================= -->
+        <record id="sale_quotations_view_search" model="ir.ui.view">
+            <field name="name">sale.quotations.search</field>
+            <field name="model">sale.quotations</field>
+            <field name="arch" type="xml">
+                <search string="Search Sales Order">
+                    <field name="name"/>
+                </search>
+            </field>
+        </record>
+    </data>
+</odoo>

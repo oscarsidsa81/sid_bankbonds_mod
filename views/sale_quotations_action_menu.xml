@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- Acción -->
+        <record id="action_sale_quotations" model="ir.actions.act_window">
+            <field name="name">Quotations</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">sale.quotations</field>
+            <field name="view_mode">tree,form</field>
+
+            <!-- tu tree REAL (este xmlid sí existe, según tu parseerror) -->
+            <field name="view_id" ref="sid_bankbonds_mod.sale_quotations_view_tree"/>
+
+            <!-- opcional -->
+            <field name="search_view_id" ref="sid_bankbonds_mod.sale_quotations_view_search"/>
+
+            <field name="context">{}</field>
+        </record>
+
+        <!-- Menú: Ventas / Pedidos / Quotations -->
+        <menuitem id="menu_sale_quotations"
+                  name="Quotations"
+                  parent="sale.sale_order_menu"
+                  action="action_sale_quotations"
+                  sequence="10"/>
+    </data>
+</odoo>

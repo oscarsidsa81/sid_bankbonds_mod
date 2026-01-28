@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- 1) Acción de servidor -->
+        <record id="ir_actions_server_sid_bonds_pdf_uploaded" model="ir.actions.server">
+            <field name="name">Avales - Crear/Actualizar documento al crear con PDF</field>
+            <field name="model_id" ref="model_sid_bonds_orders"/>
+            <field name="state">code</field>
+            <field name="code"><![CDATA[
+for record in records:
+    if not record.pdf_aval:
+        continue
+
+    folder = env.ref('sid_bankbonds_mod.folder_avales', raise_if_not_found=False)
+    if not folder:
+        continue
+
+    pedidos_txt = ", ".join(record.contract_ids.mapped("name")) if record.contract_ids else ""
+    origen_txt = record.origin_document or ""
+    document_name = (pedidos_txt + " " + origen_txt).strip() or (record.reference or record.name or "Aval")
+    raw_name = record.reference or record.name or document_name or "Aval"
+    if isinstance(raw_name, (tuple, list)):
+        raw_name = raw_name[0] if raw_name else "Aval"
+    name_aval = str(raw_name).strip() or "Aval"
+
+    document_vals = {
+        "name": name_aval,
+        "datas": record.pdf_aval,
+        "partner_id": record.partner_id.id,
+        "mimetype": "application/pdf",
+        "res_model": "sid_bonds_orders",
+        "res_id": record.id,
+        "folder_id": folder.id,
+        # Si tienes un campo custom tipo x_name_2 en documents.document, lo puedes poner aquí:
+        # "x_name_2": document_name,
+    }
+
+    existing_document = env["documents.document"].search([
+        ("res_model", "=", "sid_bonds_orders"),
+        ("res_id", "=", record.id),
+        ("folder_id", "=", folder.id),
+    ], limit=1)
+
+    if existing_document:
+        existing_document.write(document_vals)
+    else:
+        env["documents.document"].create(document_vals)
+      ]]></field>
+        </record>
+
+        <!-- 2) Automatización -->
+        <record id="base_automation_sid_bonds_on_pdf_create" model="base.automation">
+            <field name="name">Avales - Disparar al crear con PDF</field>
+            <field name="model_id" ref="model_sid_bonds_orders"/>
+            <field name="trigger">on_create_or_write</field>
+            <field name="trigger_field_ids" eval="[
+                (4, ref('sid_bankbonds_mod.field_sid_bonds_orders__pdf_aval')),
+                (4, ref('sid_bankbonds_mod.field_sid_bonds_orders__reference'))
+            ]"/>
+            <field name="filter_domain">[('pdf_aval', '!=', False)]</field>
+            <field name="action_server_id" ref="ir_actions_server_sid_bonds_pdf_uploaded"/>
+            <field name="active">True</field>
+        </record>
+
+    </data>
+</odoo>
