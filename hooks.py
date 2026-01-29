@@ -198,7 +198,11 @@ def post_init_migrate_from_studio(cr, registry):
             vals["res_field"] = "pdf_aval"
         att.write(vals)
 
-    # 5) Reglas de acceso: evitar depender de xmlids de otros módulos
+    # 5) Documents: mover documentos (documents.document) vinculados al modelo antiguo
+    # al folder "AVALES" y reengancharlos al modelo nuevo.
+    _migrate_documents_to_avales(env, legacy_to_new)
+
+    # 6) Reglas de acceso: evitar depender de xmlids de otros módulos
     _ensure_contract_rules(env)
 
 
@@ -237,3 +241,82 @@ def _ensure_contract_rules(env):
         rule.write(vals)
     else:
         IrRule.create(vals)
+
+
+def _migrate_documents_to_avales(env, legacy_to_new):
+    """Migrate Documents app entries related to legacy bonds.
+
+    This handles:
+      - documents.document.folder_id -> "AVALES"
+      - ir.attachment.res_model/res_id -> sid_bonds_orders/new_id
+      - (optional) cloud_base: ir.attachment.clouds_folder_id set to the workspace of the folder
+        without rewriting res_model/res_id (context no_folder_update=True).
+    """
+
+    # Documents module may not be installed
+    if "documents.document" not in env:
+        return
+
+    Docs = env["documents.document"].sudo()
+    Att = env["ir.attachment"].sudo()
+
+    # Folder AVALES
+    folder = None
+    if "documents.folder" in env:
+        Folder = env["documents.folder"].sudo()
+        folder = Folder.search([("name", "=", "AVALES")], limit=1)
+        if not folder:
+            root = Folder.search([("parent_folder_id", "=", False)], limit=1)
+            vals = {"name": "AVALES"}
+            if root:
+                vals["parent_folder_id"] = root.id
+            folder = Folder.create(vals)
+
+    # cloud_base workspace folder (optional)
+    clouds_folder_id = False
+    if folder and "clouds.folder" in env:
+        cfolder = env["clouds.folder"].sudo().search([
+            ("res_model", "=", "documents.folder"),
+            ("res_id", "=", folder.id),
+        ], limit=1)
+        if cfolder:
+            clouds_folder_id = cfolder.id
+
+    # Find documents whose attachment points to legacy model
+    docs = Docs.search([
+        ("attachment_id.res_model", "=", "x_bonds.orders"),
+        ("attachment_id.res_id", "in", list(legacy_to_new.keys())),
+    ])
+
+    if not docs:
+        return
+
+    for doc in docs:
+        att = doc.attachment_id
+        if not att:
+            continue
+        new_id = legacy_to_new.get(att.res_id)
+        if not new_id:
+            continue
+
+        # 1) Move to AVALES folder (Documents UI)
+        if folder and getattr(doc, "folder_id", False):
+            try:
+                doc.write({"folder_id": folder.id})
+            except Exception:
+                _logger.exception("sid_bankbonds_mod: cannot move document %s to folder AVALES", doc.id)
+
+        # 2) Ensure attachment points to new bond record
+        vals = {"res_model": "sid_bonds_orders", "res_id": new_id}
+        # Preserve field binding if it was Studio pdf
+        if att.res_field == "x_aval":
+            vals["res_field"] = "pdf_aval"
+
+        # If cloud module is present, optionally pin the cloud folder (without altering res_model/res_id)
+        if clouds_folder_id and hasattr(att, "clouds_folder_id"):
+            vals_cloud = dict(vals)
+            vals_cloud["clouds_folder_id"] = clouds_folder_id
+            att.with_context(no_folder_update=True).write(vals_cloud)
+        else:
+            att.write(vals)
+
