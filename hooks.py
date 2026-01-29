@@ -1,6 +1,11 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import logging
+
 from odoo import api, SUPERUSER_ID
+
+_logger = logging.getLogger(__name__)
 
 
 def post_init_migrate_from_studio(cr, registry):
@@ -55,6 +60,17 @@ def post_init_migrate_from_studio(cr, registry):
     if not old_recs:
         return
 
+    def _old_get(rec, *names, default=False):
+        """Lee campos de Studio/UI de forma tolerante.
+
+        En algunas BBDD el usuario puede haber renombrado un campo Studio, o puede
+        no existir. Con esto evitamos AttributeError en el hook.
+        """
+        for n in names:
+            if n and n in rec._fields:
+                return rec[n]
+        return default
+
     legacy_to_new = {}
 
     # Creamos en lotes (evita consumo excesivo de memoria)
@@ -74,36 +90,53 @@ def post_init_migrate_from_studio(cr, registry):
         batch_old_ids = []
 
     for o in old_recs:
+        # En Studio/UI, algunos campos pueden haber cambiado de nombre o no existir en todas las BBDD.
+        # Usamos _old_get para que la migración sea tolerante a variantes.
+        x_name = _old_get(o, "x_name", default=False)
+        x_cliente = _old_get(o, "x_cliente", default=False)
+        x_banco = _old_get(o, "x_banco", default=False)
+        x_currency = _old_get(o, "x_currency_id", "x_currency", default=False)
+        # Se han visto variantes: x_importe / x_importe (monetary)
+        x_importe = _old_get(o, "x_importe", "x_importe", default=0.0) or 0.0
+        x_create = _old_get(o, "x_create", default=False)
+        x_date = _old_get(o, "x_date", default=False)
+        x_modo = _old_get(o, "x_modo", default=False)
+        x_revisado = _old_get(o, "x_revisado", default=False)
+        x_estado = _old_get(o, "x_estado", default=False)
+        x_tipo = _old_get(o, "x_tipo", default=False)
+        x_aval = _old_get(o, "x_aval", default=False)
+        x_pedidos = _old_get(o, "x_pedidos", default=False)
+
         vals = {
             "legacy_x_bonds_id": o.id,
 
             # Referencia
-            "reference": o.x_name or False,
-            "name": o.x_name or False,
+            "reference": x_name or False,
+            "name": x_name or False,
 
             # M2O
-            "partner_id": o.x_cliente.id if o.x_cliente else False,
-            "journal_id": o.x_banco.id if o.x_banco else False,
-            "currency_id": o.x_currency_id.id if o.x_currency_id else False,
+            "partner_id": x_cliente.id if x_cliente else False,
+            "journal_id": x_banco.id if x_banco else False,
+            "currency_id": x_currency.id if x_currency else False,
 
             # Importes/fechas
-            "amount": o.x_importe or 0.0,
-            "issue_date": o.x_create or False,
-            "due_date": o.x_date or False,
+            "amount": x_importe,
+            "issue_date": x_create or False,
+            "due_date": x_date or False,
 
             # booleanos
-            "is_digital": bool(o.x_modo),
-            "reviewed": bool(o.x_revisado),
+            "is_digital": bool(x_modo),
+            "reviewed": bool(x_revisado),
 
             # selección
-            "state": state_map.get(o.x_estado) or "draft",
-            "aval_type": aval_type_map.get(o.x_tipo) or False,
+            "state": state_map.get(x_estado) or "draft",
+            "aval_type": aval_type_map.get(x_tipo) or False,
 
             # binario (si está en attachment, Odoo mantendrá el ir.attachment)
-            "pdf_aval": o.x_aval or False,
+            "pdf_aval": x_aval or False,
 
             # M2M contratos/pedidos
-            "contract_ids": [(6, 0, o.x_pedidos.ids)] if getattr(o, "x_pedidos", False) else [(6, 0, [])],
+            "contract_ids": [(6, 0, x_pedidos.ids)] if x_pedidos else [(6, 0, [])],
         }
 
         batch.append(vals)
