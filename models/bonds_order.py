@@ -159,12 +159,23 @@ class BondsOrder ( models.Model ) :
         if not todo_type :
             return
 
+            # Umbral por aval (default 3.0 si vacío)
+        thr = float ( getattr ( self, "variation_threshold_pct", 3.0 ) or 0.0 )
+
         summary = _ ( "Revisar necesidad de ampliar aval" )
+
         note = _ (
-            "Se detectó variación > 3%% en Base Imponible Pedidos.\n"
-            "Anterior: %(old)s\nNuevo: %(new)s\nCambio: %(pct).2f%%\n\n"
+            "Se detectó variación >= %(thr).2f%% en Base Imponible Pedidos.\n"
+            "Anterior: %(old).2f\n"
+            "Nuevo: %(new).2f\n"
+            "Cambio: %(pct).2f%%\n\n"
             "Revisar si es necesario ampliar el aval o avales asociados."
-        ) % {"old" : old_value, "new" : new_value, "pct" : pct}
+        ) % {
+                   "thr" : thr,
+                   "old" : old_value,
+                   "new" : new_value,
+                   "pct" : pct,
+               }
 
         # evita spam: si ya hay una activity abierta igual, no crear otra
         existing = self.env["mail.activity"].search ( [
