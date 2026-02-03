@@ -40,8 +40,7 @@
                             </button>
                         </div>
 
-                        <group>
-                            <group>
+                        <group name="Referencias">
                                 <field name="name" string="Contrato/Pedido"/>
                                 <field name="parent_id"
                                        string="Principal"
@@ -49,13 +48,11 @@
 
                                 <field name="child_ids"
                                        string="Adendas"
-                                       readonly="1"/>
+                                       readonly="1">
                                     <tree string="Contratos">
                                         <field name="name" string="Adendas" readonly="1" decoration-bf="1"/>
                                     </tree>
                                 </field>
-
-                            </group>
                         </group>
 
                         <notebook>
