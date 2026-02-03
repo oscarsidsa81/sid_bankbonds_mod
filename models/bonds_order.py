@@ -265,7 +265,7 @@ class BondsOrder ( models.Model ) :
                    }
 
             # 4) Nota interna. Además, notifica a esos partners (opcional pero útil)
-            bond.message_post (
+            bond.message_notify (
                 body=body,
                 message_type="comment",
                 subtype_xmlid="mail.mt_note",
@@ -486,8 +486,8 @@ class SaleQuotationsBonds(models.Model):
                 ) % (", ".join(partners.mapped("display_name")), rec.partner_id.display_name)
 
                 # Si el modelo tiene chatter:
-                if hasattr(rec, "message_post"):
-                    rec.message_post(
+                if hasattr(rec, "message_notify"):
+                    rec.message_notify(
                         body=msg,
                         message_type="comment",
                         subtype_xmlid="mail.mt_note",

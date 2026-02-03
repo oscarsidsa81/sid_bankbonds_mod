@@ -45,12 +45,11 @@
                                 <field name="name" string="Contrato/Pedido"/>
                                 <field name="parent_id"
                                        string="Principal"
-                                       attrs="{'readonly': [('child_ids','!=',False)]}"/>
+                                       attrs="{'invisible': [('id','=',False)]}"/>
 
                                 <field name="child_ids"
                                        string="Adendas"
-                                       readonly="1"
-                                       attrs="{'invisible': [('parent_id','!=',False)]}">
+                                       readonly="1">
                                     <tree string="Contratos">
                                         <field name="name" string="Adendas" readonly="1" decoration-bf="1"/>
                                     </tree>
