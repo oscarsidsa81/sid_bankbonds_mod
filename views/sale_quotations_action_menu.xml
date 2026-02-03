@@ -4,7 +4,7 @@
 
         <!-- Acción -->
         <record id="action_sale_quotations" model="ir.actions.act_window">
-            <field name="name">Quotations</field>
+            <field name="name">Contratos</field>
             <field name="type">ir.actions.act_window</field>
             <field name="res_model">sale.quotations</field>
             <field name="view_mode">tree,form</field>
@@ -20,7 +20,7 @@
 
         <!-- Menú: Ventas / Pedidos / Quotations -->
         <menuitem id="menu_sale_quotations"
-                  name="Quotations"
+                  name="Contratos"
                   parent="sale.sale_order_menu"
                   action="action_sale_quotations"
                   sequence="10"/>

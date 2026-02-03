@@ -115,7 +115,13 @@
             <field name="model">sale.quotations</field>
             <field name="arch" type="xml">
                 <search string="Search Sales Order">
-                    <field name="name"/>
+                    <field name="name" string="Referencia de Contrato"/>
+                    <field name="parent_id" string="Contrato Principal"/>
+                    <field name="partner_id"/>
+                    <field name="sale_order_sale_ids" string="Pedidos"/>
+                    <group name="sid_group">
+                        <filter name="sid_cliente" string="Cliente" context="{'group_by': 'partner_id'}"/>
+                    </group>
                 </search>
             </field>
         </record>
