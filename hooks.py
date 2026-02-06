@@ -95,9 +95,9 @@ def post_init_migrate_from_studio(cr, registry):
         x_name = _old_get(o, "x_name", default=False)
         x_cliente = _old_get(o, "x_cliente", default=False)
         x_banco = _old_get(o, "x_banco", default=False)
-        x_currency = _old_get(o, "x_currency_id", "x_currency", default=False)
+        x_currency = _old_get(o, "x_currency_id", default=False)
         # Se han visto variantes: x_importe / x_importe (monetary)
-        x_importe = _old_get(o, "x_importe", "x_importe", default=0.0) or 0.0
+        x_importe = _old_get(o, "x_importe", default=0.0) or 0.0
         x_create = _old_get(o, "x_create", default=False)
         x_date = _old_get(o, "x_date", default=False)
         x_modo = _old_get(o, "x_modo", default=False)
@@ -244,23 +244,18 @@ def _ensure_contract_rules(env):
 
 
 def _migrate_documents_to_avales(env, legacy_to_new):
-    """Migrate Documents app entries related to legacy bonds.
-
-    This handles:
-      - documents.document.folder_id -> "AVALES"
-      - ir.attachment.res_model/res_id -> sid_bonds_orders/new_id
-      - (optional) cloud_base: ir.attachment.clouds_folder_id set to the workspace of the folder
-        without rewriting res_model/res_id (context no_folder_update=True).
-    """
-
-    # Documents module may not be installed
+    """Mueve documents.document vinculados a x_bonds.orders -> carpeta AVALES y reengancha al modelo nuevo."""
     if "documents.document" not in env:
         return
 
     Docs = env["documents.document"].sudo()
     Att = env["ir.attachment"].sudo()
 
-    # Folder AVALES
+    old_ids = list(legacy_to_new.keys())
+    if not old_ids:
+        return
+
+    # --- Folder AVALES ---
     folder = None
     if "documents.folder" in env:
         Folder = env["documents.folder"].sudo()
@@ -272,7 +267,7 @@ def _migrate_documents_to_avales(env, legacy_to_new):
                 vals["parent_folder_id"] = root.id
             folder = Folder.create(vals)
 
-    # cloud_base workspace folder (optional)
+    # --- cloud_base: localizar clouds.folder para esa carpeta documents.folder ---
     clouds_folder_id = False
     if folder and "clouds.folder" in env:
         cfolder = env["clouds.folder"].sudo().search([
@@ -282,41 +277,72 @@ def _migrate_documents_to_avales(env, legacy_to_new):
         if cfolder:
             clouds_folder_id = cfolder.id
 
-    # Find documents whose attachment points to legacy model
-    docs = Docs.search([
-        ("attachment_id.res_model", "=", "x_bonds.orders"),
-        ("attachment_id.res_id", "in", list(legacy_to_new.keys())),
-    ])
+    # --- Buscar documentos vinculados al modelo antiguo (por doc.res_model/res_id o por attachment) ---
+    domain = ["|",
+              "&", ("res_model", "=", "x_bonds.orders"), ("res_id", "in", old_ids),
+              "&", ("attachment_id.res_model", "=", "x_bonds.orders"), ("attachment_id.res_id", "in", old_ids)]
+    docs = Docs.search(domain)
 
     if not docs:
         return
 
+    moved = 0
+    relinked = 0
+
     for doc in docs:
-        att = doc.attachment_id
-        if not att:
+        # Determinar legacy_id y new_id
+        legacy_id = False
+
+        if getattr(doc, "res_model", False) == "x_bonds.orders" and doc.res_id:
+            legacy_id = doc.res_id
+
+        elif doc.attachment_id and doc.attachment_id.res_model == "x_bonds.orders":
+            legacy_id = doc.attachment_id.res_id
+
+        if not legacy_id:
             continue
-        new_id = legacy_to_new.get(att.res_id)
+
+        new_id = legacy_to_new.get(legacy_id)
         if not new_id:
             continue
 
-        # 1) Move to AVALES folder (Documents UI)
-        if folder and getattr(doc, "folder_id", False):
+        # 1) mover carpeta
+        if folder and getattr(doc, "folder_id", False) and doc.folder_id.id != folder.id:
             try:
                 doc.write({"folder_id": folder.id})
+                moved += 1
             except Exception:
-                _logger.exception("sid_bankbonds_mod: cannot move document %s to folder AVALES", doc.id)
+                _logger.exception("sid_bankbonds_mod: cannot move documents.document %s to folder AVALES", doc.id)
 
-        # 2) Ensure attachment points to new bond record
-        vals = {"res_model": "sid_bonds_orders", "res_id": new_id}
-        # Preserve field binding if it was Studio pdf
-        if att.res_field == "x_aval":
-            vals["res_field"] = "pdf_aval"
+        # 2) reenganchar el propio documents.document si tiene res_model/res_id
+        doc_vals = {}
+        if hasattr(doc, "res_model") and hasattr(doc, "res_id"):
+            if getattr(doc, "res_model", False) == "x_bonds.orders":
+                doc_vals.update({"res_model": "sid_bonds_orders", "res_id": new_id})
 
-        # If cloud module is present, optionally pin the cloud folder (without altering res_model/res_id)
-        if clouds_folder_id and hasattr(att, "clouds_folder_id"):
-            vals_cloud = dict(vals)
-            vals_cloud["clouds_folder_id"] = clouds_folder_id
-            att.with_context(no_folder_update=True).write(vals_cloud)
-        else:
-            att.write(vals)
+        if doc_vals:
+            try:
+                doc.write(doc_vals)
+                relinked += 1
+            except Exception:
+                _logger.exception("sid_bankbonds_mod: cannot relink documents.document %s", doc.id)
+
+        # 3) reenganchar el attachment (clave para que el documento quede bien atado)
+        att = doc.attachment_id
+        if att and att.res_model == "x_bonds.orders":
+            vals = {"res_model": "sid_bonds_orders", "res_id": new_id}
+
+            # si venía del campo studio x_aval -> campo nuevo pdf_aval
+            if att.res_field == "x_aval":
+                vals["res_field"] = "pdf_aval"
+
+            # cloud_base: fijar carpeta cloud sin dejar que module "recoloque"
+            if clouds_folder_id and hasattr(att, "clouds_folder_id"):
+                vals2 = dict(vals)
+                vals2["clouds_folder_id"] = clouds_folder_id
+                att.with_context(no_folder_update=True).write(vals2)
+            else:
+                att.write(vals)
+
+    _logger.info("sid_bankbonds_mod: documents migrated: moved=%s relinked=%s total=%s", moved, relinked, len(docs))
 

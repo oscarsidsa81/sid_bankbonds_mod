@@ -109,19 +109,53 @@ class BondsOrder ( models.Model ) :
         tracking=True,
     )
 
+    state_manage = fields.Selection(
+        [
+            ("new", "Nuevos"),
+            ("current", "Vigentes"),
+            ("finished", "Vencido"),
+            ("done", "Finalizado"),
+        ],
+        string="Gestión",
+        compute="_compute_state_manage",
+        store=True,
+        tracking=True,
+        readonly=True,
+    )
+
     aval_type = fields.Selection (
         [
             ("prov", "Provisional"),
             ("adel", "Adelanto"),
             ("fiel", "Fiel Cumplimiento"),
             ("gar", "Garantía"),
-            ("fiel_gar", "Fiel Cumplimiento y Garantía"),
         ],
         string="Tipo",
         tracking=True,
     )
 
     description = fields.Text ( string="Descripción / Notas" )
+
+    @api.depends("state")
+    def _compute_state_manage(self):
+        map_new = {"draft", "pending_bank", "requested", "sent"}
+        map_current = {"receipt", "active"}
+        map_finished = {"expired", "solicit_dev", "recovered", "solicit_can"}
+        map_done = {"cancelled"}
+
+        for bond in self:
+            st = bond.state
+            if st in map_new:
+                bond.state_manage = "new"
+            elif st in map_current:
+                bond.state_manage = "current"
+            elif st in map_finished:
+                bond.state_manage = "finished"
+            elif st in map_done:
+                bond.state_manage = "done"
+            else:
+                # fallback defensivo (por si se añade un estado nuevo en el futuro)
+                bond.state_manage = "new"
 
     def write(self, vals) :
         # 1) Guardamos el valor anterior (calculado) antes del write
