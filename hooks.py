@@ -6,9 +6,10 @@ def post_init_migrate_from_studio(cr, _registry):
     env = api.Environment(cr, SUPERUSER_ID, {})
 
     # Modelos
-    Old = env["x_bonds.orders"] if "x_bonds.orders" in env else None
-    New = env["sid_bonds_orders"] if "sid_bonds_orders" in env else None
-    if Old is None or New is None :
+    try :
+        Old = env["x_bonds.orders"]
+        New = env["sid_bonds_orders"]
+    except KeyError :
         return
 
     state_map = {
