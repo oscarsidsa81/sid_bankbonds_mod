@@ -6,9 +6,9 @@ def post_init_migrate_from_studio(cr, _registry):
     env = api.Environment(cr, SUPERUSER_ID, {})
 
     # Modelos
-    Old = env["x_bonds.orders"] if "x_bonds.orders" in env else False
-    New = env["sid_bonds_orders"] if "sid_bonds_orders" in env else False
-    if not Old or not New :
+    Old = env["x_bonds.orders"] if "x_bonds.orders" in env else None
+    New = env["sid_bonds_orders"] if "sid_bonds_orders" in env else None
+    if Old is None or New is None :
         return
 
     state_map = {
@@ -90,7 +90,7 @@ def post_init_migrate_from_studio(cr, _registry):
             "journal_id": x_banco.id if x_banco else False,
             "currency_id": x_currency.id if x_currency else False,
 
-            "amount": x_importe,
+            "amount": float(x_importe or 0.0),
             "issue_date": x_create or False,
             "due_date": x_date or False,
 
