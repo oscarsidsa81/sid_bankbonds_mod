@@ -2,32 +2,29 @@
 from odoo import api, SUPERUSER_ID
 
 
-def post_init_migrate_from_studio(cr, registry):
+def post_init_migrate_from_studio(cr, _registry):
     env = api.Environment(cr, SUPERUSER_ID, {})
 
     # Modelos
-    Old = env.get("x_bonds.orders")  # modelo Studio
-    New = env.get("sid_bonds_orders")  # modelo nuevo
-
-    # Si el modelo antiguo no existe, no hacemos nada
-    if not Old or not New:
+    Old = env["x_bonds.orders"] if "x_bonds.orders" in env else False
+    New = env["sid_bonds_orders"] if "sid_bonds_orders" in env else False
+    if not Old or not New :
         return
 
     state_map = {
         "draft": "draft",
         "sent": "sent",
-        "sign": "sign",
+        "pending_bank": "pending_bank",
         "receipt": "receipt",
         "solicit_dev": "solicit_dev",
         "recovered": "recovered",
         "solicit_can": "solicit_can",
         "canceled": "cancelled",  # Studio usa 'canceled', nuevo usa 'cancelled'
-        "cancelled": "cancelled",
     }
     aval_type_map = {
         "prov": "prov",
         "adelanto": "adel",
-        "adel": "adel",
+        "adel" : "adel",
         "fiel": "fiel",
         "gar": "gar",
         "fiel_gar": "fiel_gar",
@@ -41,64 +38,6 @@ def post_init_migrate_from_studio(cr, registry):
             if n and n in rec._fields:
                 return rec[n]
         return default
-
-    def _to_float(v, default=0.0):
-        """Convierte monetary/float/str a float de forma segura."""
-        if v is False or v is None:
-            return float(default)
-        # monetary/float/int
-        if isinstance(v, (int, float)):
-            return float(v)
-        # a veces puede venir como string
-        if isinstance(v, str):
-            s = v.strip()
-            if not s:
-                return float(default)
-            # normalizar formatos típicos ES: "1.234,56"
-            # - quitar separador miles
-            # - convertir coma decimal a punto
-            s = s.replace(" ", "")
-            if "," in s and "." in s:
-                # asumimos: "." miles, "," decimal
-                s = s.replace(".", "").replace(",", ".")
-            else:
-                # si solo hay coma, es decimal
-                s = s.replace(",", ".")
-            try:
-                return float(s)
-            except Exception:
-                return float(default)
-
-        # Cualquier otro tipo
-        try:
-            return float(v)
-        except Exception:
-            return float(default)
-
-    def _detect_amount_field(rec):
-        """Fallback: detecta un campo tipo monetary/float cuyo nombre sugiera importe."""
-        # candidatos típicos primero
-        candidates = [
-            "x_importe",
-            "x_amount",
-            "x_importe_total",
-            "x_importe_aval",
-            "x_monto",
-        ]
-        for c in candidates:
-            if c in rec._fields:
-                return c
-
-        # heurística por nombre + tipo
-        for fname, field in rec._fields.items():
-            name_l = (fname or "").lower()
-            if ("importe" in name_l or "amount" in name_l) and getattr(field, "type", None) in (
-                "float",
-                "monetary",
-            ):
-                return fname
-
-        return None
 
     # --- evitar duplicados: ya migrados ---
     legacy_rows = New.sudo().search_read(
@@ -131,12 +70,7 @@ def post_init_migrate_from_studio(cr, registry):
         x_cliente = _old_get(o, "x_cliente", default=False)
         x_banco = _old_get(o, "x_banco", default=False)
         x_currency = _old_get(o, "x_currency_id", default=False)
-
-        # ---- AMOUNT robusto ----
-        amount_field = _detect_amount_field(o)
-        x_importe_raw = _old_get(o, amount_field, default=0.0) if amount_field else 0.0
-        x_importe = _to_float(x_importe_raw, default=0.0)
-
+        x_importe =  _old_get(o, "x_importe", default=False)
         x_create = _old_get(o, "x_create", default=False)
         x_date = _old_get(o, "x_date", default=False)
         x_modo = _old_get(o, "x_modo", default=False)
