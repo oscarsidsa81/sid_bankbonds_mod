@@ -40,19 +40,36 @@ def post_init_migrate_from_studio(cr, _registry):
                 return rec[n]
         return default
 
-    # --- evitar duplicados: ya migrados ---
+    # --- detectar migraciones previas y corregir registros incompletos ---
     legacy_rows = New.sudo().search_read(
-        [("legacy_x_bonds_id", "!=", False)], ["legacy_x_bonds_id"]
+        [("legacy_x_bonds_id", "!=", False)],
+        ["id", "legacy_x_bonds_id", "amount", "currency_id"],
     )
-    existing_legacy_ids = {
-        r["legacy_x_bonds_id"] for r in legacy_rows if r.get("legacy_x_bonds_id")
+
+    legacy_to_new_id = {r["legacy_x_bonds_id"]: r["id"] for r in legacy_rows if r.get("legacy_x_bonds_id")}
+    existing_legacy_ids = set(legacy_to_new_id.keys())
+
+    # Los que ya existen pero vienen mal: amount=0 o currency_id vacío.
+    bad_legacy_ids = {
+        r["legacy_x_bonds_id"]
+        for r in legacy_rows
+        if r.get("legacy_x_bonds_id")
+        and (
+            (r.get("amount") in (0, 0.0, False, None))
+            or (not r.get("currency_id"))
+        )
     }
 
-    old_recs = Old.sudo().search([("id", "not in", list(existing_legacy_ids))])
+    # Olds a crear (no existen en New) + olds a reparar (ya existen, pero incompletos)
+    old_recs = Old.sudo().search([
+        "|",
+        ("id", "not in", list(existing_legacy_ids)),
+        ("id", "in", list(bad_legacy_ids)),
+    ])
     if not old_recs:
         return
 
-    legacy_to_new = {}
+    legacy_to_new = {}  # ids creados en este post_init
     batch = []
     batch_old_ids = []
 
@@ -70,7 +87,7 @@ def post_init_migrate_from_studio(cr, _registry):
         x_name = _old_get(o, "x_name", default=False)
         x_cliente = _old_get(o, "x_cliente", default=False)
         x_banco = _old_get(o, "x_banco", default=False)
-        x_currency = _old_get(o, "x_currency_id", default=False)
+        x_currency_id = _old_get(o, "x_currency_id", default=False)
         x_importe =  _old_get(o, "x_importe", default=False)
         x_create = _old_get(o, "x_create", default=False)
         x_date = _old_get(o, "x_date", default=False)
@@ -81,28 +98,48 @@ def post_init_migrate_from_studio(cr, _registry):
         x_aval = _old_get(o, "x_aval", default=False)
         x_pedidos = _old_get(o, "x_pedidos", default=False)
 
+        # Si ya existe en New pero está incompleto, lo reparamos (sin recrear)
+        if o.id in bad_legacy_ids and o.id in legacy_to_new_id:
+            new_rec = New.sudo().browse(legacy_to_new_id[o.id])
+            upd = {}
+
+            # amount: si está a 0 y el legacy trae valor, lo copiamos
+            if (new_rec.amount in (0, 0.0, False, None)) and x_importe not in (False, None):
+                upd["amount"] = float(x_importe or 0.0)
+
+            # currency_id: si está vacío, prioriza legacy; si no hay, usa moneda compañía
+            if not new_rec.currency_id:
+                if x_currency_id:
+                    upd["currency_id"] = x_currency_id.id
+                else:
+                    upd["currency_id"] = env.company.currency_id.id
+
+            # Campos básicos: en reparaciones también rellenamos si vienen vacíos
+            if not new_rec.reference and x_name:
+                upd["reference"] = x_name
+            if not new_rec.name and x_name:
+                upd["name"] = x_name
+
+            if upd:
+                new_rec.write(upd)
+            continue
+
+        # Si no existe, lo creamos
         vals = {
             "legacy_x_bonds_id": o.id,
-
             "reference": x_name or False,
             "name": x_name or False,
-
             "partner_id": x_cliente.id if x_cliente else False,
             "journal_id": x_banco.id if x_banco else False,
-            "currency_id": x_currency.id if x_currency else False,
-
+            "currency_id": x_currency_id.id or False,
             "amount": float(x_importe or 0.0),
             "issue_date": x_create or False,
             "due_date": x_date or False,
-
             "is_digital": bool(x_modo),
             "reviewed": bool(x_revisado),
-
             "state": state_map.get(x_estado) or "draft",
             "aval_type": aval_type_map.get(x_tipo) or False,
-
             "pdf_aval": x_aval or False,
-
             "contract_ids": [(6, 0, x_pedidos.ids)] if x_pedidos else [(6, 0, [])],
         }
 
@@ -114,6 +151,7 @@ def post_init_migrate_from_studio(cr, _registry):
 
     _flush_batch()
 
+    # Si sólo hemos reparado (sin crear), no hace falta re-enlazar nada.
     if not legacy_to_new:
         return
 
