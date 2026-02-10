@@ -194,7 +194,7 @@ class BondsOrder ( models.Model ) :
         if not todo_type :
             return
 
-            # Umbral por aval (default 3.0 si vacío)
+        # Umbral por aval (default 3.0 si vacío)
         thr = float ( getattr ( self, "variation_threshold_pct", 3.0 ) or 0.0 )
 
         summary = _ ( "Revisar necesidad de ampliar aval" )
@@ -212,14 +212,13 @@ class BondsOrder ( models.Model ) :
                    "pct" : pct,
                }
 
-        # evita spam: si ya hay una activity abierta igual, no crear otra
+        # Evita spam: NO buscar por mail.activity.state (no es stored en Odoo 15)
         existing = self.env["mail.activity"].search ( [
             ("res_model", "=", self._name),
             ("res_id", "=", self.id),
             ("user_id", "=", self.create_uid.id),
             ("activity_type_id", "=", todo_type.id),
             ("summary", "=", summary),
-            ("state", "=", "planned"),
         ], limit=1 )
         if existing :
             return
@@ -246,8 +245,8 @@ class BondsOrder ( models.Model ) :
     def _post_base_pedidos_variation_note(self, old_map) :
         """
         old_map: {bond_id: old_base_pedidos}
-        Si variación > 3% (contra valor anterior) y estado permitido:
-          - publica nota interna mencionando a usuarios del grupo
+        Si variación > umbral y estado permitido:
+          - publica nota interna mencionando a usuarios del grupo (si hay)
           - crea activity tipo Por hacer para create_uid
         """
         partners = self._get_bonds_manager_partners ()
@@ -264,14 +263,14 @@ class BondsOrder ( models.Model ) :
             if old == 0.0 and new == 0.0 :
                 continue
 
+            threshold = float ( bond.variation_threshold_pct or 3.0 )
+
             # 2) % contra valor anterior (si old == 0, no se puede dividir)
             if old == 0.0 :
-                # Si quieres que 0 -> algo dispare siempre, deja esto así:
                 pct = 100.0
                 changed = (new != 0.0)
             else :
                 pct = abs ( new - old ) / abs ( old ) * 100.0
-                threshold = float(bond.variation_threshold_pct or 3.0)
                 changed = pct > threshold
 
             if not changed :
@@ -285,8 +284,6 @@ class BondsOrder ( models.Model ) :
                     for p in partners
                 )
 
-            threshold = float(bond.variation_threshold_pct or 3.0)
-
             body = _ (
                 "<p><b>Variación en Base Imponible Pedidos</b> (&gt; %(thr).2f%%)</p>"
                 "<p>Anterior: %(old)s<br/>Nuevo: %(new)s<br/>Cambio: %(pct).2f%%</p>"
@@ -295,17 +292,24 @@ class BondsOrder ( models.Model ) :
                        "old" : old,
                        "new" : new,
                        "pct" : pct,
-                       "thr": threshold,
+                       "thr" : threshold,
                        "mentions" : f"<p>{mentions_html}</p>" if mentions_html else "",
                    }
 
-            # 4) Nota interna. Además, notifica a esos partners (opcional pero útil)
-            bond.message_notify (
-                body=body,
-                message_type="comment",
-                subtype_xmlid="mail.mt_note",
-                partner_ids=partners.ids if partners else None,
-            )
+            # 4) Si hay partners, notificar; si no, postear nota sin notify (evita warning)
+            if partners :
+                bond.message_notify (
+                    body=body,
+                    message_type="comment",
+                    subtype_xmlid="mail.mt_note",
+                    partner_ids=partners.ids,
+                )
+            else :
+                bond.message_post (
+                    body=body,
+                    message_type="comment",
+                    subtype_xmlid="mail.mt_note",
+                )
 
             # 5) Activity al creador
             bond._schedule_creator_todo ( old, new, pct )
@@ -335,18 +339,15 @@ class BondsOrder ( models.Model ) :
     def _compute_base_pedidos(self) :
         for bond in self :
             if not bond.contract_ids or not bond.partner_id :
-                # Forzamos write para que haya tracking y pueda disparar avisos.
-                if bond.base_pedidos != 0.0:
-                    bond.write({"base_pedidos": 0.0})
+                # compute store: asignación directa (NO write dentro del compute)
+                bond.base_pedidos = 0.0
                 continue
 
             orders = bond.contract_ids.mapped ( "sale_order_ids" ).filtered (
                 lambda
                     so : so.partner_id.id == bond.partner_id.id and so.state == "sale"
             )
-            new_val = sum ( orders.mapped ( "amount_untaxed" ) )
-            if bond.base_pedidos != new_val:
-                bond.write({"base_pedidos": new_val})
+            bond.base_pedidos = sum ( orders.mapped ( "amount_untaxed" ) )
 
     @api.depends ( "contract_ids", "partner_id" )
     def _compute_documento_origen(self) :
