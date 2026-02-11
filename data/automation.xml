@@ -9,6 +9,14 @@
             <field name="state">code</field>
             <field name="code"><![CDATA[
 for record in records:
+    # Guard: durante instalación / actualización de módulos
+    if env.context.get("install_mode"):
+        continue
+
+    # (Opcional, recomendado) Guard adicional en cargas masivas/imports/recomputes
+    if env.context.get("module_install") or env.context.get("module_uninstall") or env.context.get("import_file"):
+        continue
+
     if not record.pdf_aval:
         continue
 
@@ -32,7 +40,6 @@ for record in records:
         "res_model": "sid_bonds_orders",
         "res_id": record.id,
         "folder_id": folder.id,
-        # Si tienes un campo custom tipo x_name_2 en documents.document, lo puedes poner aquí:
         # "x_name_2": document_name,
     }
 

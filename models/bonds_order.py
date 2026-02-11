@@ -219,6 +219,7 @@ class BondsOrder ( models.Model ) :
             ("user_id", "=", self.create_uid.id),
             ("activity_type_id", "=", todo_type.id),
             ("summary", "=", summary),
+            ("date_done", "=", False),
         ], limit=1 )
         if existing :
             return
@@ -297,18 +298,19 @@ class BondsOrder ( models.Model ) :
                    }
 
             # 4) Si hay partners, notificar; si no, postear nota sin notify (evita warning)
+            bond.message_post (
+                body=body,
+                message_type="comment",
+                subtype_xmlid="mail.mt_note",
+            )
+
+            # 4b) Notificación solo si hay destinatarios
             if partners :
                 bond.message_notify (
                     body=body,
                     message_type="comment",
                     subtype_xmlid="mail.mt_note",
                     partner_ids=partners.ids,
-                )
-            else :
-                bond.message_post (
-                    body=body,
-                    message_type="comment",
-                    subtype_xmlid="mail.mt_note",
                 )
 
             # 5) Activity al creador
@@ -496,46 +498,52 @@ class SaleQuotationsBonds(models.Model):
         "sale_order_sale_ids.partner_id",
         "sale_order_sale_ids.date_order",
     )
+    @api.depends (
+        "sale_order_sale_ids",
+        "sale_order_sale_ids.partner_id",
+        "sale_order_sale_ids.date_order",
+    )
+    def _compute_sale_partner_id(self) :
+        """
+        Compute store=True SIN efectos colaterales:
+        - No message_post / message_notify dentro de compute (evita spam y lentitud en install/recompute masivo).
+        - Resuelve partner por el pedido confirmado más reciente.
+        - Si hay varios partners, solo lo registra en log (y además se salta en install_mode).
+        """
+        for rec in self :
+            orders = rec.sale_order_sale_ids.filtered (
+                lambda so : so.partner_id )
 
-    def _compute_sale_partner_id(self):
-        for rec in self:
-            partners = rec.sale_order_sale_ids.mapped("partner_id").filtered(lambda p: p)
-
-            if not partners:
+            if not orders :
                 rec.partner_id = False
                 continue
 
-            # Elegimos el partner del pedido confirmado más reciente
-            # (si date_order es False, lo empujamos “hacia atrás” con un fallback mínimo)
-            def _key(so):
-                return so.date_order or fields.Datetime.from_string("1970-01-01 00:00:00")
+            # más reciente por date_order (fallback viejo si está vacío)
+            def _key(so) :
+                return so.date_order or fields.Datetime.from_string (
+                    "1970-01-01 00:00:00" )
 
-            so_latest = rec.sale_order_sale_ids.sorted(key=_key, reverse=True)[:1]
-            # so_latest es un recordset de 0/1
-            rec.partner_id = so_latest.partner_id.id if so_latest else False
+            so_latest = orders.sorted ( key=_key, reverse=True )[:1]
+            rec.partner_id = so_latest.partner_id if so_latest else False
 
-            # Aviso NO bloqueante si hay más de un cliente
-            if len(partners) > 1 and rec.partner_id:
-                msg = _(
-                    "Atención: hay múltiples clientes en pedidos confirmados (%s). "
-                    "Se ha fijado el cliente del pedido más reciente (%s)."
-                ) % (", ".join(partners.mapped("display_name")), rec.partner_id.display_name)
-
-                # Si el modelo tiene chatter:
-                if hasattr(rec, "message_notify"):
-                    rec.message_notify(
-                        body=msg,
-                        message_type="comment",
-                        subtype_xmlid="mail.mt_note",
-                    )
-                else:
-                    _logger.warning("%s", msg)
+            # Si hay más de un cliente, NO postear en chatter desde compute.
+            # En instalación, ni siquiera loguear (evita ruido).
+            partners = orders.mapped ( "partner_id" )
+            if len ( partners ) > 1 and not rec.env.context.get (
+                    "install_mode" ) :
+                _logger.warning (
+                    "sale.quotations %s: múltiples clientes en pedidos confirmados (%s). "
+                    "Se fija el del pedido más reciente: %s",
+                    rec.display_name,
+                    ", ".join ( partners.mapped ( "display_name" ) ),
+                    rec.partner_id.display_name if rec.partner_id else "N/A",
+                )
 
     # --- Smart button counters ---
-    child_count = fields.Integer(string="Adendas", compute="_compute_smart_counts")
-    sale_order_count = fields.Integer(string="Sale Orders", compute="_compute_smart_counts")
-    bond_count = fields.Integer(string="Avales", compute="_compute_smart_counts")
-    purchase_count = fields.Integer(string="Compras", compute="_compute_smart_counts")
+    child_count = fields.Integer(string="Nº Adendas", compute="_compute_smart_counts")
+    sale_order_count = fields.Integer(string="Nº Pedidos", compute="_compute_smart_counts")
+    bond_count = fields.Integer(string="Nº Avales", compute="_compute_smart_counts")
+    purchase_count = fields.Integer(string="Nº Compras", compute="_compute_smart_counts")
 
     @api.depends("child_ids", "sale_order_sale_ids", "bond_ids")
     def _compute_smart_counts(self):

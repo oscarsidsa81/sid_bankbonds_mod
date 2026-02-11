@@ -88,7 +88,7 @@ def post_init_migrate_from_studio(cr, _registry):
         x_cliente = _old_get(o, "x_cliente", default=False)
         x_banco = _old_get(o, "x_banco", default=False)
         x_currency_id = _old_get(o, "x_currency_id", default=False)
-        x_importe =  _old_get(o, "x_importe", default=False)
+        x_importe = _old_get ( o, "x_importe", default= 0.0 ) or 0.0
         x_create = _old_get(o, "x_create", default=False)
         x_date = _old_get(o, "x_date", default=False)
         x_modo = _old_get(o, "x_modo", default=False)
