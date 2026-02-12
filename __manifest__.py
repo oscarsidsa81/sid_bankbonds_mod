@@ -1,25 +1,32 @@
-# -*- coding: utf-8 -*-
 {
-    "name": "sid_bankbonds_mod",
-    "summary": "Gestión de avales con contratos vinculados, estados y chatter",
-    "version": "15.0.1.0.0",
-    "author": "oscarsidsa81",
-    "website": "https://sid-sa.com",
-    "category": "Accounting/Finance",
-    "license": "AGPL-3",
-    "depends": ["base", "mail", "purchase", "account", "sale","documents","oct_sale_extra_fields"],  # sale por sale.order; account por account.journal
-    "data": [
-        "security/security.xml",
-        "security/ir.model.access.csv",
-        "data/automation.xml",
-        'views/sale_quotations_views.xml',
-        'views/sale_quotations_action_menu.xml',
-        "views/bonds_views.xml",
-    ],
-    'installable' : True,
-    'auto_install' : False,
-    'application' : False,
+    'name': 'sid_projects_dossier',
+    'version': '1.1.0',
+    'category': 'Sales',
+    'license': 'AGPL-3',
+    'summary': 'Control de Base Imponible',
+    'description': 'Módulo de gestión de Dossieres de Calidad',
+    'author': 'oscarsidsa81',
+    'depends': ['base','crm','sale_management','documents','oct_sale_extra_fields'],
+    'data': [
+        'security/security.xml',
+        'security/ir.model.access.csv',
+        'data/document_group.xml',
+        'data/documents_tags.xml',
 
-    # Migración automática desde el modelo Studio (si existe): x_bonds.orders
-    'post_init_hook': 'post_init_migrate_from_studio',
+        # Wizard actions/views must be loaded before views referencing them
+        'data/sid_dossier_assign_wizard.xml',
+
+        # Views / menus
+        'views/sid_projects_dossier_sales.xml',
+        'views/sid_projects_dossier_quotations.xml',
+
+        # Window actions / menus
+        'data/document_actions.xml',
+    ],
+    'installable': True,
+    'auto_install': False,
+    'application': False,
+
+    # Vincular estructura existente: "Dossieres de calidad" (root) y años
+    'post_init_hook': 'post_init_bind_quality_dossiers_folders',
 }

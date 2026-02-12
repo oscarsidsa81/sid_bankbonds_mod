@@ -1,0 +1,20 @@
+<odoo>
+
+    <record id="action_dossieres" model="ir.actions.act_window">
+        <field name="name">Dossieres</field>
+        <field name="res_model">sale.order</field>
+        <field name="view_mode">tree,form</field>
+        <field name="view_id" ref="sid_projects_dossier_sales_tree"/>  <!-- 👈 aquí -->
+        <field name="domain">[('tiene_dossier','=',True), ('state','=','sale')]</field>
+        <field name="context">{'group_by': ['partner_id','quotations_id'], 'expand': 1}</field>
+        <field name="limit">80</field>
+    </record>
+    <!-- MENÚ: Dossieres bajo Ventas > (el padre que indicaste) -->
+    <record id="menu_dossieres" model="ir.ui.menu">
+        <field name="name">Dossieres</field>
+        <field name="parent_id" ref="sale.sale_order_menu"/>
+        <field name="action" ref="action_dossieres"/>
+        <field name="sequence">50</field>
+        <field name="web_icon">fa-book</field>
+    </record>
+</odoo>

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Categorías de etiquetas ligadas al workspace -->
+    <record id="sid_tagcat_doc" model="documents.facet">
+        <field name="name">DOC</field>
+        <field name="folder_id" ref="sid_workspace_quality_dossiers"/>
+    </record>
+
+    <record id="sid_tagcat_estado" model="documents.facet">
+        <field name="name">ESTADO</field>
+        <field name="folder_id" ref="sid_workspace_quality_dossiers"/>
+    </record>
+
+    <!-- Etiquetas DOC -->
+    <record id="sid_tag_doc_itp" model="documents.tag">
+        <field name="name">ITP</field>
+        <field name="folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="facet_id" ref="sid_tagcat_doc"/>
+    </record>
+    <record id="sid_tag_doc_procedimiento" model="documents.tag">
+        <field name="name">PROCEDIMIENTO</field>
+        <field name="folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="facet_id" ref="sid_tagcat_doc"/>
+    </record>
+    <record id="sid_tag_doc_lista_documentos" model="documents.tag">
+        <field name="name">LISTA DE DOCUMENTOS</field>
+        <field name="folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="facet_id" ref="sid_tagcat_doc"/>
+    </record>
+    <record id="sid_tag_doc_certificados" model="documents.tag">
+        <field name="name">CERTIFICADOS</field>
+        <field name="folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="facet_id" ref="sid_tagcat_doc"/>
+    </record>
+    <record id="sid_tag_doc_dossier" model="documents.tag">
+        <field name="name">DOSSIER</field>
+        <field name="folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="facet_id" ref="sid_tagcat_doc"/>
+    </record>
+    <record id="sid_tag_doc_plano" model="documents.tag">
+        <field name="name">PLANO</field>
+        <field name="folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="facet_id" ref="sid_tagcat_doc"/>
+    </record>
+    <record id="sid_tag_doc_mpr" model="documents.tag">
+        <field name="name">MPR</field>
+        <field name="folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="facet_id" ref="sid_tagcat_doc"/>
+    </record>
+    <record id="sid_tag_doc_schedule" model="documents.tag">
+        <field name="name">SCHEDULE</field>
+        <field name="folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="facet_id" ref="sid_tagcat_doc"/>
+    </record>
+    <record id="sid_tag_doc_lista_materiales" model="documents.tag">
+        <field name="name">LISTA DE MATERIALES</field>
+        <field name="folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="facet_id" ref="sid_tagcat_doc"/>
+    </record>
+    <record id="sid_tag_doc_packing_list" model="documents.tag">
+        <field name="name">PACKING LIST</field>
+        <field name="folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="facet_id" ref="sid_tagcat_doc"/>
+    </record>
+    <record id="sid_tag_doc_quality_plan" model="documents.tag">
+        <field name="name">QUALITY PLAN</field>
+        <field name="folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="facet_id" ref="sid_tagcat_doc"/>
+    </record>
+
+    <!-- Etiquetas ESTADO -->
+    <record id="sid_tag_estado_proveedor" model="documents.tag">
+        <field name="name">PROVEEDOR</field>
+        <field name="folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="facet_id" ref="sid_tagcat_estado"/>
+    </record>
+    <record id="sid_tag_estado_enviado" model="documents.tag">
+        <field name="name">ENVIADO</field>
+        <field name="folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="facet_id" ref="sid_tagcat_estado"/>
+    </record>
+    <record id="sid_tag_estado_comentarios" model="documents.tag">
+        <field name="name">COMENTARIOS</field>
+        <field name="folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="facet_id" ref="sid_tagcat_estado"/>
+    </record>
+    <record id="sid_tag_estado_rechazado" model="documents.tag">
+        <field name="name">RECHAZADO</field>
+        <field name="folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="facet_id" ref="sid_tagcat_estado"/>
+    </record>
+    <record id="sid_tag_estado_aprobado" model="documents.tag">
+        <field name="name">APROBADO</field>
+        <field name="folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="facet_id" ref="sid_tagcat_estado"/>
+    </record>
+
+</odoo>

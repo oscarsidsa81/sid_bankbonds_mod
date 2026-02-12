@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/sid_bankbonds_mod.iml" filepath="$PROJECT_DIR$/.idea/sid_bankbonds_mod.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/sid_projects_dossier.iml" filepath="$PROJECT_DIR$/.idea/sid_projects_dossier.iml" />
     </modules>
   </component>
 </project>

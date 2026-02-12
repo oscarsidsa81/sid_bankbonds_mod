@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+   <!-- Workspace raíz -->
+    <record id="sid_workspace_quality_dossiers" model="documents.folder">
+        <field name="name">Dossieres de calidad</field>
+        <field name="parent_folder_id" eval="False"/>  <!-- raíz ⇒ workspace -->
+        <field name="sequence">10</field>
+        <field name="company_id" eval="False"/>        <!-- todas las compañías -->
+    </record>
+    <record id="sid_workspace_archived" model="documents.folder">
+        <field name="name">Archivado</field>
+        <field name="parent_folder_id" eval="False"/>  <!-- raíz ⇒ workspace -->
+        <field name="sequence">10</field>
+        <field name="company_id" eval="False"/>        <!-- todas las compañías -->
+    </record>
+       <!-- Subespacios 2024..2030 -->
+    <record id="sid_folder_2024" model="documents.folder">
+        <field name="name">2024</field>
+        <field name="parent_folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="sequence">2024</field>
+    </record>
+    <record id="sid_folder_2025" model="documents.folder">
+        <field name="name">2025</field>
+        <field name="parent_folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="sequence">2025</field>
+    </record>
+    <record id="sid_folder_2026" model="documents.folder">
+        <field name="name">2026</field>
+        <field name="parent_folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="sequence">2026</field>
+    </record>
+    <record id="sid_folder_2027" model="documents.folder">
+        <field name="name">2027</field>
+        <field name="parent_folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="sequence">2027</field>
+    </record>
+    <record id="sid_folder_2028" model="documents.folder">
+        <field name="name">2028</field>
+        <field name="parent_folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="sequence">2028</field>
+    </record>
+    <record id="sid_folder_2029" model="documents.folder">
+        <field name="name">2029</field>
+        <field name="parent_folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="sequence">2029</field>
+    </record>
+    <record id="sid_folder_2030" model="documents.folder">
+        <field name="name">2030</field>
+        <field name="parent_folder_id" ref="sid_workspace_quality_dossiers"/>
+        <field name="sequence">2030</field>
+    </record>
+</odoo>
