@@ -58,7 +58,7 @@
                         <notebook>
                             <page string="Presupuestos / Pedidos">
                                 <field name="sale_order_sale_ids"
-                                       domain="[('state','=','done')]"
+                                       domain="[('state','=','sale')]"
                                        readonly="1">
                                     <tree create="0">
                                         <field name="quotations_id"/>
@@ -67,7 +67,7 @@
                                         <field name="amount_untaxed" optional="show"/>
                                         <field name="user_id"/>
                                         <field name="state" widget="badge"
-                                               decoration-success="state == 'done'"/>
+                                               decoration-success="state == 'sale'"/>
                                     </tree>
                                 </field>
                             </page>
@@ -79,8 +79,8 @@
                                         <field name="reference"/>
                                         <field name="amount" optional="show"/>
                                         <field name="state" widget="badge"
-                                               decoration-success="state == 'done'"
-                                               decoration-info="state not in ('done', 'cancel')"/>
+                                               decoration-success="state == 'active'"
+                                               decoration-info="state not in ('active', 'cancelled')"/>
                                     </tree>
                                 </field>
                             </page>
