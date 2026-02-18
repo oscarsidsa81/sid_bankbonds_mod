@@ -76,6 +76,7 @@
                             <field name="currency_id" domain="[('name','in',('USD','EUR'))]"/>
                             <field name="is_digital"/>
                             <field name="reviewed"/>
+                            <field name="variation_threshold_pct"/>
                         </group>
                     </group>
 
