@@ -498,11 +498,6 @@ class SaleQuotationsBonds(models.Model):
         "sale_order_sale_ids.partner_id",
         "sale_order_sale_ids.date_order",
     )
-    @api.depends (
-        "sale_order_sale_ids",
-        "sale_order_sale_ids.partner_id",
-        "sale_order_sale_ids.date_order",
-    )
     def _compute_sale_partner_id(self) :
         """
         Compute store=True SIN efectos colaterales:
@@ -699,9 +694,4 @@ class SaleQuotationsBonds(models.Model):
                     "Quita el contrato principal o las adendas antes de continuar."
                 ))
 
-            # Si quieres prohibir “principal que a la vez sea adenda”:
-            if rec.child_ids and rec.parent_id:
-                raise ValidationError(_(
-                    "Un contrato con adendas no puede tener contrato principal (parent_id)."
-                ))
 
