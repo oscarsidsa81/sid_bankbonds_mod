@@ -58,7 +58,7 @@
                         <notebook>
                             <page string="Presupuestos / Pedidos">
                                 <field name="sale_order_sale_ids"
-                                       domain="[('state','=','done')]"
+                                       domain="[('state','=','sale')]"
                                        readonly="1">
                                     <tree create="0">
                                         <field name="quotations_id"/>
@@ -67,7 +67,7 @@
                                         <field name="amount_untaxed" optional="show"/>
                                         <field name="user_id"/>
                                         <field name="state" widget="badge"
-                                               decoration-success="state == 'done'"/>
+                                               decoration-success="state == 'sale'"/>
                                     </tree>
                                 </field>
                             </page>
@@ -78,9 +78,12 @@
                                         <field name="name"/>
                                         <field name="reference"/>
                                         <field name="amount" optional="show"/>
+                                        <field name="state_manage" invisible="1"/>
                                         <field name="state" widget="badge"
-                                               decoration-success="state == 'done'"
-                                               decoration-info="state not in ('done', 'cancel')"/>
+                                               decoration-success="state_manage == 'current'"
+                                               decoration-info="state_manage == 'new'"
+                                               decoration-warning="state_manage == 'finished'"
+                                               decoration-muted="state_manage == 'done'"/>
                                     </tree>
                                 </field>
                             </page>
