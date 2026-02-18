@@ -163,7 +163,7 @@ class BondsOrder ( models.Model ) :
         # OJO: base_pedidos es compute store=False => se calcula al acceder
         old_map = {b.id : b.base_pedidos for b in self}
 
-        # 2) write normal (y tu lógica de name/reference si la mantienes)
+        # 2) write normal (y lógica de name/reference)
         if "reference" in vals and vals.get ( "reference" ) :
             vals = dict ( vals )
             vals["name"] = vals["reference"]

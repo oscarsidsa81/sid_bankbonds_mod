@@ -78,9 +78,12 @@
                                         <field name="name"/>
                                         <field name="reference"/>
                                         <field name="amount" optional="show"/>
+                                        <field name="state_manage" invisible="1"/>
                                         <field name="state" widget="badge"
-                                               decoration-success="state == 'active'"
-                                               decoration-info="state not in ('active', 'cancelled')"/>
+                                               decoration-success="state_manage == 'current'"
+                                               decoration-info="state_manage == 'new'"
+                                               decoration-warning="state_manage == 'finished'"
+                                               decoration-muted="state_manage == 'done'"/>
                                     </tree>
                                 </field>
                             </page>
