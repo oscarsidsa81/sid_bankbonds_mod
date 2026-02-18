@@ -163,7 +163,7 @@ class BondsOrder ( models.Model ) :
         # OJO: base_pedidos es compute store=False => se calcula al acceder
         old_map = {b.id : b.base_pedidos for b in self}
 
-        # 2) write normal (y tu lógica de name/reference si la mantienes)
+        # 2) write normal (y lógica de name/reference)
         if "reference" in vals and vals.get ( "reference" ) :
             vals = dict ( vals )
             vals["name"] = vals["reference"]
@@ -353,17 +353,34 @@ class BondsOrder ( models.Model ) :
 
     @api.depends ( "contract_ids", "partner_id" )
     def _compute_documento_origen(self) :
-        for record in self :
-            if record.contract_ids and record.partner_id :
-                sale_orders = self.env["sale.order"].search ( [
-                    ("quotations_id", "in", record.contract_ids.ids),
-                    ("partner_id", "=", record.partner_id.id),
-                    ("state", "=", "sale"),
-                ] )
-                record.origin_document = ", ".join (
-                    sale_orders.mapped ( "name" ) )
-            else :
-                record.origin_document = False
+        records_with_data = self.filtered ( lambda r : r.contract_ids and r.partner_id )
+        for record in (self - records_with_data) :
+            record.origin_document = False
+
+        if not records_with_data :
+            return
+
+        all_quotation_ids = records_with_data.mapped ( "contract_ids" ).ids
+        all_partner_ids = records_with_data.mapped ( "partner_id" ).ids
+
+        sale_orders = self.env["sale.order"].search ( [
+            ("quotations_id", "in", all_quotation_ids),
+            ("partner_id", "in", all_partner_ids),
+            ("state", "=", "sale"),
+        ] )
+
+        orders_by_key = {}
+        for so in sale_orders :
+            key = (so.partner_id.id, so.quotations_id.id)
+            orders_by_key.setdefault ( key, [] ).append ( so.name )
+
+        for record in records_with_data :
+            names = []
+            for quotation in record.contract_ids :
+                names.extend ( orders_by_key.get ( (record.partner_id.id, quotation.id), [] ) )
+            # Mantén orden y evita duplicados
+            unique_names = list ( dict.fromkeys ( names ) )
+            record.origin_document = ", ".join ( unique_names ) or False
 
     def action_request(self) :
         for rec in self :
@@ -494,11 +511,6 @@ class SaleQuotationsBonds(models.Model):
             rec.sale_order_sale_ids = orders
 
     @api.depends(
-        "sale_order_sale_ids",
-        "sale_order_sale_ids.partner_id",
-        "sale_order_sale_ids.date_order",
-    )
-    @api.depends (
         "sale_order_sale_ids",
         "sale_order_sale_ids.partner_id",
         "sale_order_sale_ids.date_order",
@@ -699,9 +711,4 @@ class SaleQuotationsBonds(models.Model):
                     "Quita el contrato principal o las adendas antes de continuar."
                 ))
 
-            # Si quieres prohibir “principal que a la vez sea adenda”:
-            if rec.child_ids and rec.parent_id:
-                raise ValidationError(_(
-                    "Un contrato con adendas no puede tener contrato principal (parent_id)."
-                ))
 
