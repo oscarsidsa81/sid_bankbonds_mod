@@ -134,10 +134,23 @@
                 <field name="journal_id"/>
                 <field name="aval_type"/>
                 <field name="state"/>
+                <field name="state_manage"/>
 
                 <filter string="Pendientes"
                         name="filter_pending"
                         domain="[('state','in',('draft','pending_bank'))]"/>
+                <filter string="Gestión: Nuevos"
+                        name="filter_manage_new"
+                        domain="[('state_manage','=','new')]"/>
+                <filter string="Gestión: Vigentes"
+                        name="filter_manage_current"
+                        domain="[('state_manage','=','current')]"/>
+                <filter string="Gestión: Vencidos"
+                        name="filter_manage_finished"
+                        domain="[('state_manage','=','finished')]"/>
+                <filter string="Gestión: Finalizados"
+                        name="filter_manage_done"
+                        domain="[('state_manage','=','done')]"/>
 
                 <filter string="Cancelados"
                         name="filter_cancel"
@@ -147,6 +160,7 @@
                     <filter string="Cliente" name="grp_partner" context="{'group_by': 'partner_id'}"/>
                     <filter string="Banco" name="grp_journal" context="{'group_by': 'journal_id'}"/>
                     <filter string="Estado" name="grp_state" context="{'group_by': 'state'}"/>
+                    <filter string="Gestión" name="grp_state_manage" context="{'group_by': 'state_manage'}"/>
                     <filter string="Tipo" name="grp_type" context="{'group_by': 'aval_type'}"/>
                 </group>
             </search>
