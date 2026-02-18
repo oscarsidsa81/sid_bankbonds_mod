@@ -212,14 +212,14 @@ class BondsOrder ( models.Model ) :
                    "pct" : pct,
                }
 
-        # Evita spam: NO buscar por mail.activity.state (no es stored en Odoo 15)
+        # Evita spam: buscamos actividades pendientes por fecha límite (Odoo 15 no tiene date_done)
         existing = self.env["mail.activity"].search ( [
             ("res_model", "=", self._name),
             ("res_id", "=", self.id),
             ("user_id", "=", self.create_uid.id),
             ("activity_type_id", "=", todo_type.id),
             ("summary", "=", summary),
-            ("date_done", "=", False),
+            ("date_deadline", "!=", False),
         ], limit=1 )
         if existing :
             return
