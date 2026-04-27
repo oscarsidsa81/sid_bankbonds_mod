@@ -11,7 +11,18 @@
         <field name="arch" type="xml">
             <form string="Aval">
                 <header>
-                    <field name="state" widget="statusbar" options="{'clickable': true}"/>
+                    <button name="action_set_draft" type="object" string="Borrador"
+                            states="requested,pending_bank,sent,receipt,active,expired,solicit_dev,recovered,solicit_can,cancelled"
+                            class="oe_link"/>
+                    <button name="action_request" type="object" string="Solicitar"
+                            states="draft" class="oe_highlight"/>
+                    <button name="action_activate" type="object" string="Activar"
+                            states="draft,requested" class="oe_highlight"/>
+                    <button name="action_expire" type="object" string="Vencer"
+                            states="active"/>
+                    <button name="action_cancel" type="object" string="Cancelar"
+                            states="draft,pending_bank,requested,sent,receipt,active,solicit_dev,recovered,solicit_can"/>
+                    <field name="state" widget="statusbar" options="{'clickable': false}"/>
                 </header>
 
                 <sheet>

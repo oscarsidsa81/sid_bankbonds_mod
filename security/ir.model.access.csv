@@ -1,2 +1,3 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_sid_bonds_orders_bonds_manager,sid_bonds_orders_manager,model_sid_bonds_orders,sid_bankbonds_mod.group_bonds_manager,1,1,1,1
+access_sid_bonds_orders_internal_read,sid_bonds_orders_internal_read,model_sid_bonds_orders,base.group_user,1,0,0,0

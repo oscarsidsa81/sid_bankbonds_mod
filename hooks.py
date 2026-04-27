@@ -55,14 +55,12 @@ def post_init_migrate_from_studio(cr, _registry):
 
     def _ensure_avales_folder():
         """
-        Reutiliza la carpeta AVALES ya existente (idealmente la id 745 si existe),
-        o la crea si no existe. Devuelve recordset documents.folder.
+        Reutiliza la carpeta AVALES ya existente o la crea si no existe.
+        Devuelve recordset documents.folder.
         """
         DF = env["documents.folder"].sudo()
 
-        folder = DF.browse(745).exists()
-        if not folder:
-            folder = DF.search([("name", "=", "AVALES")], limit=1)
+        folder = DF.search([("name", "=", "AVALES")], limit=1)
 
         if not folder:
             parent = DF.search([("parent_folder_id", "=", False), ("name", "ilike", "internal")], limit=1)
@@ -81,13 +79,10 @@ def post_init_migrate_from_studio(cr, _registry):
         # Si existe regla/registro en sync.model (Cloud Sync) con doc_domain a una id distinta, la alineamos.
         SM = env["sync.model"].sudo() if "sync.model" in env else None
         if SM:
-            # en tu entorno la regla usa doc_domain de documents.document en contexto, p.ej. "[['id','=',745]]"
+            # en tu entorno la regla usa doc_domain de documents.document en contexto.
             rules = SM.search([("name", "ilike", "AVALES")])
             for r in rules:
                 if hasattr(r, "doc_domain") and r.doc_domain:
-                    # si tiene un id fijo distinto, lo sustituimos.
-                    if "745" in r.doc_domain and folder.id == 745:
-                        continue
                     # patrón simple: [['id', '=', N]]
                     new_dom = "[['id', '=', %s]]" % folder.id
                     if r.doc_domain.strip() != new_dom:
@@ -122,6 +117,17 @@ def post_init_migrate_from_studio(cr, _registry):
     avales_folder = False
     if "documents.folder" in env:
         avales_folder = _ensure_avales_folder()
+
+    # ---------------------------------------------------------------------
+    # Desactivar artefactos Studio para evitar coexistencia
+    # ---------------------------------------------------------------------
+    old_model_obj = env["ir.model"].sudo().search([("model", "=", "x_bonds.orders")], limit=1)
+    if old_model_obj:
+        env["ir.ui.view"].sudo().search([("model", "=", "x_bonds.orders"), ("active", "=", True)]).write({"active": False})
+        env["ir.actions.act_window"].sudo().search([("res_model", "=", "x_bonds.orders")]).write({"active": False})
+        env["ir.actions.server"].sudo().search([("model_id", "=", old_model_obj.id)]).write({"active": False})
+        if "base.automation" in env:
+            env["base.automation"].sudo().search([("model_id", "=", old_model_obj.id)]).write({"active": False})
 
     # ---------------------------------------------------------------------
     # Mapas
@@ -206,6 +212,10 @@ def post_init_migrate_from_studio(cr, _registry):
         x_tipo = _old_get(o, "x_tipo", default=False)
         x_aval = _old_get(o, "x_aval", default=False)
         x_pedidos = _old_get(o, "x_pedidos", default=False)
+        x_contrato_recs = _old_get(o, "x_contrato", default=False)
+        all_quotation_ids = set(x_pedidos.ids if x_pedidos else [])
+        if x_contrato_recs:
+            all_quotation_ids.update(x_contrato_recs.ids)
 
         # Importes SIEMPRE por SQL
         x_importe, x_currency_id = _sql_old_amount_currency(o.id)
@@ -228,6 +238,8 @@ def post_init_migrate_from_studio(cr, _registry):
                 upd["reference"] = x_name
             if not new_rec.name and x_name:
                 upd["name"] = x_name
+            if all_quotation_ids:
+                upd["contract_ids"] = [(6, 0, list(all_quotation_ids))]
 
             if upd:
                 new_rec.write(upd)
@@ -237,7 +249,7 @@ def post_init_migrate_from_studio(cr, _registry):
         vals = {
             "legacy_x_bonds_id": o.id,
             "reference": x_name or False,
-            "name": x_name or False,
+            "name": x_name or "AV-LEGACY-%s" % o.id,
             "partner_id": x_cliente.id if x_cliente else False,
             "journal_id": x_banco.id if x_banco else False,
             "currency_id": int(x_currency_id) if x_currency_id else env.company.currency_id.id,
@@ -249,7 +261,7 @@ def post_init_migrate_from_studio(cr, _registry):
             "state": state_map.get(x_estado) or "draft",
             "aval_type": aval_type_map.get(x_tipo) or False,
             "pdf_aval": x_aval or False,
-            "contract_ids": [(6, 0, x_pedidos.ids)] if x_pedidos else [(6, 0, [])],
+            "contract_ids": [(6, 0, list(all_quotation_ids))],
         }
 
         batch.append(vals)
@@ -329,5 +341,8 @@ def post_init_migrate_from_studio(cr, _registry):
             docs2 = DD.search([("res_model", "=", "sid_bonds_orders"), ("folder_id", "=", False)])
             if docs2:
                 docs2.write({"folder_id": avales_folder.id})
+
+    if "sale.quotations" in env:
+        env["sale.quotations"].sudo()._parent_store_compute()
 
     _logger.info("post_init_migrate_from_studio finished.")

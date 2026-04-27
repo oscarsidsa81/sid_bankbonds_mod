@@ -160,7 +160,7 @@ class BondsOrder ( models.Model ) :
 
     def write(self, vals) :
         # 1) Guardamos el valor anterior (calculado) antes del write
-        # OJO: base_pedidos es compute store=False => se calcula al acceder
+        # OJO: base_pedidos es compute store=True; leemos el valor actual antes del write.
         old_map = {b.id : b.base_pedidos for b in self}
 
         # 2) write normal (y lógica de name/reference)
@@ -436,7 +436,7 @@ class BondsOrder ( models.Model ) :
 class SaleQuotationsBonds(models.Model):
     _name = "sale.quotations"
     _inherit = ["sale.quotations", "mail.thread", "mail.activity.mixin"]
-    _parent_store = True  # activa parent_path (solo si tienes parent_path en el modelo)
+    _parent_store = True
     _parent_name = "parent_id"
 
     parent_id = fields.Many2one (
@@ -487,14 +487,6 @@ class SaleQuotationsBonds(models.Model):
         readonly=True,
     )
 
-    @api.constrains("parent_id", "child_ids")
-    def _check_parent_child_exclusive(self):
-        for rec in self:
-            if rec.parent_id and rec.child_ids:
-                raise ValidationError(
-                    _("Un contrato no puede tener 'Principal' y 'Adendas' a la vez.")
-                )
-
     @api.depends (
         "parent_id",
         "child_ids",
@@ -510,11 +502,7 @@ class SaleQuotationsBonds(models.Model):
                 lambda so : so.state == "sale" )
             rec.sale_order_sale_ids = orders
 
-    @api.depends(
-        "sale_order_sale_ids",
-        "sale_order_sale_ids.partner_id",
-        "sale_order_sale_ids.date_order",
-    )
+    @api.depends("sale_order_ids.state", "sale_order_ids.partner_id", "sale_order_ids.date_order")
     def _compute_sale_partner_id(self) :
         """
         Compute store=True SIN efectos colaterales:
@@ -523,7 +511,9 @@ class SaleQuotationsBonds(models.Model):
         - Si hay varios partners, solo lo registra en log (y además se salta en install_mode).
         """
         for rec in self :
-            orders = rec.sale_order_sale_ids.filtered (
+            orders = rec.sale_order_ids.filtered(
+                lambda so: so.state == "sale"
+            ).filtered(
                 lambda so : so.partner_id )
 
             if not orders :
@@ -557,15 +547,24 @@ class SaleQuotationsBonds(models.Model):
     bond_count = fields.Integer(string="Nº Avales", compute="_compute_smart_counts")
     purchase_count = fields.Integer(string="Nº Compras", compute="_compute_smart_counts")
 
-    @api.depends("child_ids", "sale_order_sale_ids", "bond_ids")
+    @api.depends("child_ids", "sale_order_sale_ids", "bond_ids", "sale_order_sale_ids.procurement_group_id")
     def _compute_smart_counts(self):
+        po_model = self.env["purchase.order"].sudo()
+        group_ids = self.mapped("sale_order_sale_ids.procurement_group_id").ids
+        purchase_map = {}
+        if group_ids:
+            grouped = po_model.read_group(
+                [("group_id", "in", group_ids)],
+                ["group_id"],
+                ["group_id"],
+                lazy=False,
+            )
+            purchase_map = {item["group_id"][0]: item["group_id_count"] for item in grouped if item.get("group_id")}
         for rec in self:
             rec.child_count = len(rec.child_ids)
             rec.sale_order_count = len(rec.sale_order_sale_ids)
             rec.bond_count = len(rec.bond_ids)
-            rec.purchase_count = rec._get_purchase_orders().sudo().search_count(
-                rec._get_purchase_domain()
-            )
+            rec.purchase_count = sum(purchase_map.get(gid, 0) for gid in rec._get_procurement_groups().ids)
 
     # --- Helpers for purchases ---
     def _get_procurement_groups(self):
@@ -573,8 +572,12 @@ class SaleQuotationsBonds(models.Model):
         self.ensure_one()
         sale_orders = self.sale_order_sale_ids
 
-        # Depending on Odoo version/custom, sale order can use group_id or procurement_group_id
-        groups = sale_orders.mapped("procurement_group_id")
+        if "procurement_group_id" in sale_orders._fields:
+            groups = sale_orders.mapped("procurement_group_id")
+        elif "group_id" in sale_orders._fields:
+            groups = sale_orders.mapped("group_id")
+        else:
+            groups = self.env["procurement.group"]
         return groups.filtered(lambda g: g)
 
     def _get_purchase_domain(self):
@@ -671,8 +674,12 @@ class SaleQuotationsBonds(models.Model):
         return self.search ( [("id", "child_of", root.id)] )
 
     @api.constrains("parent_id", "child_ids")
-    def _check_parent_child_same_partner(self):
+    def _check_parent_child_consistency(self):
         for rec in self:
+            if rec.parent_id and rec.child_ids:
+                raise ValidationError(
+                    _("Un contrato no puede tener 'Principal' y 'Adendas' a la vez.")
+                )
             rec_partner = rec._get_effective_partner_from_sale_orders()
 
             # --- Regla 1: si es adenda (tiene parent), el parent debe tener mismo cliente ---
@@ -702,13 +709,4 @@ class SaleQuotationsBonds(models.Model):
                             "c2": child_partner.display_name,
                             "child": child.display_name,
                         })
-
-            # --- (Opcional) Modelo estricto a 2 niveles ---
-            # Si quieres prohibir “adenda con hijos”:
-            if rec.parent_id and rec.child_ids:
-                raise ValidationError(_(
-                    "Una adenda no puede tener a su vez adendas. "
-                    "Quita el contrato principal o las adendas antes de continuar."
-                ))
-
 
