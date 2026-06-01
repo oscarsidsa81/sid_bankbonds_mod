@@ -559,7 +559,11 @@ class SaleQuotationsBonds(models.Model):
                 ["group_id"],
                 lazy=False,
             )
-            purchase_map = {item["group_id"][0]: item["group_id_count"] for item in grouped if item.get("group_id")}
+            purchase_map = {
+                item["group_id"][0]: item.get("group_id_count", item.get("__count", 0))
+                for item in grouped
+                if item.get("group_id")
+            }
         for rec in self:
             rec.child_count = len(rec.child_ids)
             rec.sale_order_count = len(rec.sale_order_sale_ids)
