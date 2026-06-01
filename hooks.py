@@ -111,6 +111,35 @@ def post_init_migrate_from_studio(cr, _registry):
             amount = 0.0
         return amount, cur_id
 
+    def _deactivate_if_supported(records):
+        """Desactiva records solo cuando el modelo soporta el campo active."""
+        if not records:
+            return False
+        if "active" not in records._fields:
+            _logger.info(
+                "Skipping active=False on %s because the model has no active field.",
+                records._name,
+            )
+            return False
+        records.write({"active": False})
+        return True
+
+    def _hide_window_actions(actions):
+        """Oculta acciones Studio de ventana sin asumir que tengan campo active."""
+        if not actions:
+            return
+        if _deactivate_if_supported(actions):
+            return
+
+        action_refs = ["ir.actions.act_window,%s" % action.id for action in actions]
+        menus = env["ir.ui.menu"].sudo().search([("action", "in", action_refs)])
+        _deactivate_if_supported(menus)
+
+        # Las acciones de ventana de Odoo 15 no tienen active; quitar el binding
+        # evita que aparezcan como acciones contextuales si venían de Studio.
+        if "binding_model_id" in actions._fields:
+            actions.write({"binding_model_id": False})
+
     # ---------------------------------------------------------------------
     # Carpeta AVALES (reutilizar la actual, evitar duplicados)
     # ---------------------------------------------------------------------
@@ -123,11 +152,19 @@ def post_init_migrate_from_studio(cr, _registry):
     # ---------------------------------------------------------------------
     old_model_obj = env["ir.model"].sudo().search([("model", "=", "x_bonds.orders")], limit=1)
     if old_model_obj:
-        env["ir.ui.view"].sudo().search([("model", "=", "x_bonds.orders"), ("active", "=", True)]).write({"active": False})
-        env["ir.actions.act_window"].sudo().search([("res_model", "=", "x_bonds.orders")]).write({"active": False})
-        env["ir.actions.server"].sudo().search([("model_id", "=", old_model_obj.id)]).write({"active": False})
+        _deactivate_if_supported(
+            env["ir.ui.view"].sudo().search([("model", "=", "x_bonds.orders"), ("active", "=", True)])
+        )
+        _hide_window_actions(
+            env["ir.actions.act_window"].sudo().search([("res_model", "=", "x_bonds.orders")])
+        )
+        _deactivate_if_supported(
+            env["ir.actions.server"].sudo().search([("model_id", "=", old_model_obj.id)])
+        )
         if "base.automation" in env:
-            env["base.automation"].sudo().search([("model_id", "=", old_model_obj.id)]).write({"active": False})
+            _deactivate_if_supported(
+                env["base.automation"].sudo().search([("model_id", "=", old_model_obj.id)])
+            )
 
     # ---------------------------------------------------------------------
     # Mapas
