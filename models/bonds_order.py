@@ -560,7 +560,7 @@ class SaleQuotationsBonds(models.Model):
                 lazy=False,
             )
             purchase_map = {
-                item["group_id"][0]: item.get("group_id_count", item.get("__count", 0))
+                item["group_id"][0]: self._read_group_count(item, "group_id")
                 for item in grouped
                 if item.get("group_id")
             }
@@ -569,6 +569,17 @@ class SaleQuotationsBonds(models.Model):
             rec.sale_order_count = len(rec.sale_order_sale_ids)
             rec.bond_count = len(rec.bond_ids)
             rec.purchase_count = sum(purchase_map.get(gid, 0) for gid in rec._get_procurement_groups().ids)
+
+    @staticmethod
+    def _read_group_count(item, group_field):
+        """Return the aggregate count for a read_group row.
+
+        Odoo can expose grouped counts either as ``<field>_count`` or as
+        ``__count`` depending on version/context.  Defaulting to 0 keeps
+        smart-button counters from crashing when the specific count alias is
+        absent.
+        """
+        return item.get(f"{group_field}_count", item.get("__count", 0))
 
     # --- Helpers for purchases ---
     def _get_procurement_groups(self):
